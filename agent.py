@@ -6,7 +6,14 @@ from icalendar import Calendar
 import recurring_ical_events
 
 TZ = ZoneInfo("America/Denver")
-MODEL = "gemini-2.5-flash"
+# Tried in order; the first one that works is used
+MODELS = [
+    "gemini-3.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash",
+]
 MODE = os.environ.get("MODE", "reminder")  # "reminder" or "briefing"
 now = datetime.now(TZ)
 
@@ -38,6 +45,23 @@ def notify(title, body):
     )
 
 
+def list_available_models(key):
+    try:
+        r = requests.get(
+            "https://generativelanguage.googleapis.com/v1beta/models?pageSize=100",
+            headers={"x-goog-api-key": key},
+            timeout=30,
+        )
+        names = [
+            m["name"]
+            for m in r.json().get("models", [])
+            if "generateContent" in m.get("supportedGenerationMethods", [])
+        ]
+        print("Models your key can use:", ", ".join(names))
+    except Exception as err:
+        print("Could not list models:", err)
+
+
 def ask_gemini(event_text):
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -49,18 +73,22 @@ def ask_gemini(event_text):
         "events, events that probably need preparation, or a very busy stretch. "
         "If nothing stands out, say the day looks manageable.\n\n" + event_text
     )
-    try:
-        r = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{MODEL}:generateContent",
-            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=60,
-        )
-        r.raise_for_status()
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except Exception as err:
-        print("Gemini call failed:", err)
-        return ""
+    for model in MODELS:
+        try:
+            r = requests.post(
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+                headers={"x-goog-api-key": key, "Content-Type": "application/json"},
+                json={"contents": [{"parts": [{"text": prompt}]}]},
+                timeout=60,
+            )
+            r.raise_for_status()
+            text = r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+            print("Gemini worked with model:", model)
+            return text
+        except Exception as err:
+            print(f"Model {model} failed:", err)
+    list_available_models(key)
+    return ""
 
 
 if MODE == "reminder":
