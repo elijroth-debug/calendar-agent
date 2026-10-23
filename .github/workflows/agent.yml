@@ -19,4 +19,4 @@ jobs:
         env:
           ICS_URL: ${{ secrets.ICS_URL }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          MODE: ${{ github.event.schedule == '0 13 * * *' && 'briefing' || 'reminder' }}
+          MODE: ${{ github.event.schedule == '*/15 * * * *' && 'reminder' || 'briefing' }}
