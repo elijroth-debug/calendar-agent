@@ -18,6 +18,7 @@ jobs:
       - run: python agent.py
         env:
           ICS_URL: ${{ secrets.ICS_URL }}
+             ICS_URLS: ${{ secrets.ICS_URLS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           MODE: ${{ github.event.schedule == '*/15 * * * *' && 'reminder' || 'briefing' }}
