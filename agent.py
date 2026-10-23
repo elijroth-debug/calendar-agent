@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from icalendar import Calendar
 import recurring_ical_events
 
-TZ = ZoneInfo("America/Chicago")
+TZ = ZoneInfo("America/Denver")
 MODE = os.environ.get("MODE", "reminder")  # "reminder" or "briefing"
 now = datetime.now(TZ)
 
