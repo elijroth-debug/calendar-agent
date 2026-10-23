@@ -1,0 +1,22 @@
+name: calendar-agent
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests icalendar recurring-ical-events
+      - run: python agent.py
+        env:
+          ICS_URL: ${{ secrets.ICS_URL }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          MODE: ${{ github.event.schedule == '0 13 * * *' && 'briefing' || 'reminder' }}
