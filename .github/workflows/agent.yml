@@ -4,7 +4,17 @@ on:
   schedule:
     - cron: "*/15 * * * *"
     - cron: "0 13 * * *"
+    - cron: "0 2 * * *"
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "Which alert to send"
+        type: choice
+        options:
+          - briefing
+          - preview
+          - reminder
+        default: briefing
 
 jobs:
   run:
@@ -21,4 +31,4 @@ jobs:
           ICS_URLS: ${{ secrets.ICS_URLS }}
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          MODE: ${{ github.event.schedule == '*/15 * * * *' && 'reminder' || 'briefing' }}
+          MODE: ${{ github.event.inputs.mode || (github.event.schedule == '*/15 * * * *' && 'reminder') || (github.event.schedule == '0 2 * * *' && 'preview') || 'briefing' }}
