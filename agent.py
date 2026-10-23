@@ -17,22 +17,44 @@ MODELS = [
 MODE = os.environ.get("MODE", "reminder")  # "reminder" or "briefing"
 now = datetime.now(TZ)
 
-cal = Calendar.from_ical(requests.get(os.environ["ICS_URL"], timeout=30).content)
+# One calendar link per line. Falls back to the old single-link secret.
+raw_urls = os.environ.get("ICS_URLS") or os.environ.get("ICS_URL", "")
+urls = [u.strip() for u in raw_urls.splitlines() if u.strip()]
+
+cals = []
+for i, url in enumerate(urls, 1):
+    try:
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        cals.append(Calendar.from_ical(resp.content))
+    except Exception as err:
+        # Print only the error type, never the link itself
+        print(f"Calendar {i} failed to load: {type(err).__name__}")
+print(f"Loaded {len(cals)} of {len(urls)} calendars")
+if not cals:
+    raise SystemExit("No calendars could be loaded")
 
 
 def events_between(start, end):
+    seen = set()
     out = []
-    for e in recurring_ical_events.of(cal).between(start, end):
-        s = e.decoded("DTSTART")
-        if not isinstance(s, datetime):  # skip all-day events
-            continue
-        end_time = e.decoded("DTEND") if e.get("DTEND") else s
-        out.append((
-            s.astimezone(TZ),
-            end_time.astimezone(TZ),
-            str(e.get("SUMMARY", "Untitled")),
-            str(e.get("LOCATION", "")),
-        ))
+    for cal in cals:
+        for e in recurring_ical_events.of(cal).between(start, end):
+            s = e.decoded("DTSTART")
+            if not isinstance(s, datetime):  # skip all-day events
+                continue
+            end_time = e.decoded("DTEND") if e.get("DTEND") else s
+            item = (
+                s.astimezone(TZ),
+                end_time.astimezone(TZ),
+                str(e.get("SUMMARY", "Untitled")),
+                str(e.get("LOCATION", "")),
+            )
+            key = (item[0], item[1], item[2])
+            if key in seen:  # skip duplicates across calendars
+                continue
+            seen.add(key)
+            out.append(item)
     return sorted(out)
 
 
